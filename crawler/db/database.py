@@ -71,8 +71,8 @@ async def get_stats(db: aiosqlite.Connection) -> dict:
         SELECT
             COUNT(*) AS total_urls,
             AVG(elapsed_ms) AS avg_elapsed_ms,
-            SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END) AS success_count,
-            SUM(CASE WHEN status_code = 0 OR status_code >= 400 THEN 1 ELSE 0 END) AS error_count,
+            COALESCE(SUM(CASE WHEN status_code >= 200 AND status_code < 400 THEN 1 ELSE 0 END), 0) AS success_count,
+            COALESCE(SUM(CASE WHEN status_code = 0 OR status_code >= 400 THEN 1 ELSE 0 END), 0) AS error_count,
             MAX(crawled_at) AS last_crawled_at
         FROM crawl_results
     """)
@@ -84,6 +84,12 @@ async def get_stats(db: aiosqlite.Connection) -> dict:
         "error_count": row["error_count"],
         "last_crawled_at": row["last_crawled_at"] or "",
     }
+
+
+async def count_results(db: aiosqlite.Connection) -> int:
+    cursor = await db.execute("SELECT COUNT(*) FROM crawl_results")
+    row = await cursor.fetchone()
+    return row[0]
 
 
 async def get_batch(db: aiosqlite.Connection, batch_id: str) -> list[dict]:
